@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>海賊さんのリンク収集ボード</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://pyscript.net/releases/2024.7.1/core.css">
+  <script type="module" src="https://pyscript.net/releases/2024.7.1/core.js"></script>
+
+  <style>
+  body { font-family: system-ui, -apple-system, sans-serif; margin: 16px; background:#f4f5f7; }
+  #container { max-width: 1100px; margin: 0 auto; }
+
+  h1 {
+    padding: 5cqb 1rem;
+    background-image: url(images/forest.jpg);
+    background-repeat: no-repeat;
+    background-size: cover;
+    text-align: center;
+    color:#efefef;
+    box-shadow: #4b5563 0px 10px 15px -3px, #4b5563 0px 4px 6px -2px;
+    border-radius: 1rem;
+}
+
+  form {
+    background:#fff;border-radius:12px;padding:16px 18px;margin-bottom:16px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.08);
+  }
+  label { display:block;font-size:0.85rem;margin-top:6px;margin-bottom:2px; }
+  input, textarea, select {
+    width:100%;padding:6px 8px;border-radius:8px;border:1px solid #d1d5db;
+    font-size:0.9rem;box-sizing:border-box;background:#fff;
+  }
+
+  .row { display:flex; gap:10px; align-items:center; }
+  .row > .grow { flex:1; }
+  .row > .fit { flex:0 0 auto; }
+
+  button {
+    margin-top:12px;padding:8px 16px;border-radius:999px;border:none;
+    background:#2563eb;color:#fff;font-weight:600;cursor:pointer;font-size:0.9rem;
+  }
+  button.secondary {
+    background:#111827;
+  }
+  button:disabled { opacity: .55; cursor:not-allowed; }
+
+  /* フィルタ行 */
+  .toolbar{
+    display:flex; gap:10px; align-items:center;
+    flex-wrap: wrap;
+    background:#fff;border-radius:12px;padding:10px 12px;margin:0 0 10px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.06);
+  }
+  .toolbar label{margin:0; font-size:0.85rem;}
+  .toolbar select{max-width:280px;}
+
+  .toolbar > *{
+  min-width: 0;              /* ★追加：入力が潰れないため */
+}
+.toolbar input{
+  flex: 1 1 240px;           /* ★追加：入力が伸び縮み */
+  max-width: 520px;
+}
+.toolbar select{
+  flex: 1 1 220px;           /* ★追加 */
+  max-width: 280px;
+}
+.toolbar strong{
+  padding-right: 6px;
+  white-space: nowrap;
+}
+
+  /* 一覧コンテナ */
+  #list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .card {
+    background:#fff;border-radius:12px;padding:12px 14px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.06);
+    display:flex;gap:10px;align-items:flex-start;
+  }
+  .thumb {
+    width:80px;height:80px;flex:0 0 auto;border-radius:8px;
+    object-fit:cover;background:#e5e7eb;
+  }
+  .info { flex:1; }
+  .title { font-weight:600;font-size:0.95rem;margin-bottom:4px; }
+  .url  { font-size:0.8rem;color:#2563eb;word-break:break-all; }
+  .tag  { font-size:0.75rem;color:#4b5563;margin-top:4px; }
+
+  .meta {
+    display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;
+    font-size:0.75rem; color:#374151;
+  }
+  .badge{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:2px 10px; border-radius:999px;
+    background:#eef2ff; color:#1f2a60; border:1px solid #dbeafe;
+  }
+
+/* PC表示：3列・コンパクトなカード */
+@media (min-width: 900px) {
+  #list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    align-items: start;
+    align-content: start;
+  }
+
+  .card {
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    box-sizing: border-box;
+    align-self: start;
+  }
+
+  .info {
+    flex: 1;
+    min-width: 0;
+  }
+}
+/* タイトルは最大3行 */
+.title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  line-height: 1.4;
+}
+
+/* URLは最大2行 */
+.url {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.5;
+}
+
+/* テキスト領域の高さを固定しない */
+.info {
+  min-width: 0;
+}
+
+/* カード内の余白 */
+.card {
+  padding: 12px;
+  box-sizing: border-box;
+}
+  </style>
+</head>
+
+<body>
+<div id="container">
+  <h1><span class="logo"><img src="images/logo.png"></span><br>海賊さんの リンク収集ボード</h1>
+
+  <form id="link-form">
+    <label>URL（必須）</label>
+
+    <!-- ▼ 追加：貼付けボタン -->
+    <div class="row">
+      <div class="grow">
+        <input id="url-input" type="url" placeholder="https:// から始まるアドレス">
+      </div>
+      <div class="fit">
+        <button type="button" class="secondary" id="paste-btn" style="margin-top:0;">貼付け</button>
+      </div>
+    </div>
+
+    <label>カテゴリ</label>
+    <select id="category-input">
+      <option value="ブログ">ブログ</option>
+      <option value="ライブ告知">ライブ告知</option>
+      <option value="ワークショップ">ワークショップ</option>
+      <!-- 「その他」→「レシピ」 -->
+      <option value="レシピ" selected>レシピ</option>
+    </select>
+
+    <label>タイトル（自動取得 or 手入力）</label>
+    <input id="title-input" type="text">
+
+    <label>タグ／メモ</label>
+    <input id="tag-input" type="text">
+
+    <label>サムネイルURL（自動取得）</label>
+    <input id="thumb-input" type="text">
+
+    <button type="submit">＋ 追加</button>
+  </form>
+
+    <!-- ▼ カテゴリ管理 -->
+<div class="toolbar">
+  <strong>カテゴリ管理</strong>
+  <input id="new-category-input" type="text" placeholder="新しいカテゴリ名">
+  <button type="button" id="add-category-btn">追加</button>
+</div>
+
+<div class="toolbar">
+  <label>既存カテゴリ：</label>
+  <select id="edit-category-select"></select>
+  <input id="edit-category-input" type="text" placeholder="新しい名前">
+  <button type="button" id="rename-category-btn">名前変更</button>
+  <button type="button" id="delete-category-btn" class="secondary">削除</button>
+</div>
+
+  <!-- ▼ 追加：カテゴリ絞り込み -->
+  <div class="toolbar">
+    <label for="filter-category">カテゴリ絞り込み：</label>
+    <select id="filter-category">
+      <option value="ALL">すべて</option>
+      <option value="ブログ">ブログ</option>
+      <option value="ライブ告知">ライブ告知</option>
+      <option value="ワークショップ">ワークショップ</option>
+      <option value="レシピ">レシピ</option>
+    </select>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<script type="py">
+from js import document, localStorage, console, window, navigator
+from pyodide.ffi import create_proxy
+from pyodide.http import pyfetch
+import json, asyncio
+
+# ========= 設定 =========
+CATEGORY_KEY = "pyscript_categories_v1"
+DEFAULT_CATEGORIES = ["ブログ", "ライブ告知", "ワークショップ", "レシピ"]
+
+API_GET    = "./get_links.php"
+API_ADD    = "./add_link.php"
+API_DELETE = "./delete_link.php"
+API_INFO   = "./linkinfo.php"   # プレビュー取得
+
+links = []
+categories = []
+
+# ========= プレビュー取得（先に定義しておく） =========
+def set_preview_fields(info: dict):
+    """linkinfo.php の結果をフォームへ反映（手入力があれば上書きしない）"""
+    title_el = document.getElementById("title-input")
+    thumb_el = document.getElementById("thumb-input")
+
+    title = (info.get("title") or "").strip()
+    thumb = (info.get("thumb") or "").strip()
+
+    if title and not title_el.value.strip():
+        title_el.value = title
+
+    if thumb and not thumb_el.value.strip():
+        thumb_el.value = thumb
+
+async def api_linkinfo(url: str):
+    """linkinfo.php?url=... を叩いて title/thumb を得る"""
+    try:
+        u = window.encodeURIComponent(url)
+        r = await pyfetch(f"{API_INFO}?url={u}", method="GET")
+        data = await r.json()
+        return data if isinstance(data, dict) else {}
+    except Exception as e:
+        console.error("linkinfo fetch failed:", e)
+        return {"error": "fetch failed"}
+
+def request_preview(url: str):
+    """URLからプレビュー取得してフォームへ反映"""
+    async def _do():
+        if not url:
+            return
+        info = await api_linkinfo(url)
+        if isinstance(info, dict) and info.get("error"):
+            console.error("linkinfo error:", info)
+            return
+        set_preview_fields(info if isinstance(info, dict) else {})
+    asyncio.ensure_future(_do())
+
+# ========= DB API =========
+async def api_get_links():
+    try:
+        r = await pyfetch(API_GET, method="GET")
+        data = await r.json()
+        if isinstance(data, dict) and data.get("error"):
+            console.error("get_links error:", data)
+            return []
+        return data if isinstance(data, list) else []
+    except Exception as e:
+        console.error("get_links fetch failed:", e)
+        return []
+
+async def api_add_link(payload):
+    try:
+        r = await pyfetch(
+            API_ADD,
+            method="POST",
+            headers={"Content-Type": "application/json"},
+            body=json.dumps(payload),
+        )
+        data = await r.json()
+        return data
+    except Exception as e:
+        console.error("add_link fetch failed:", e)
+        return {"error": "fetch failed"}
+
+# ========= カテゴリ（localStorage維持） =========
+def load_categories():
+    raw = localStorage.getItem(CATEGORY_KEY)
+    if raw is None:
+        localStorage.setItem(CATEGORY_KEY, json.dumps(DEFAULT_CATEGORIES))
+        return list(DEFAULT_CATEGORIES)
+    try:
+        cats = json.loads(raw)
+        if not isinstance(cats, list) or len(cats) == 0:
+            cats = list(DEFAULT_CATEGORIES)
+        if "レシピ" not in cats:
+            cats.append("レシピ")
+        return cats
+    except Exception as e:
+        console.error("category parse error", e)
+        localStorage.setItem(CATEGORY_KEY, json.dumps(DEFAULT_CATEGORIES))
+        return list(DEFAULT_CATEGORIES)
+
+def save_categories(cats):
+    localStorage.setItem(CATEGORY_KEY, json.dumps(cats))
+
+def sync_categories_from_links():
+    global categories
+    s = set(categories)
+    for it in links:
+        c = (it.get("category") or "").strip()
+        if c:
+            s.add(c)
+    if "レシピ" not in s:
+        s.add("レシピ")
+    categories = list(s)
+
+# ========= UI描画 =========
+def get_filter_value():
+    return document.getElementById("filter-category").value
+
+def render_category_selects():
+    # 投稿フォーム用
+    cat_sel = document.getElementById("category-input")
+    cat_sel.innerHTML = ""
+    for c in categories:
+        opt = document.createElement("option")
+        opt.value = c
+        opt.textContent = c
+        cat_sel.appendChild(opt)
+    if "レシピ" in categories:
+        cat_sel.value = "レシピ"
+
+    # 絞り込み用
+    filter_sel = document.getElementById("filter-category")
+    current_filter = filter_sel.value if filter_sel else "ALL"
+    filter_sel.innerHTML = ""
+
+    opt_all = document.createElement("option")
+    opt_all.value = "ALL"
+    opt_all.textContent = "すべて"
+    filter_sel.appendChild(opt_all)
+
+    for c in categories:
+        opt = document.createElement("option")
+        opt.value = c
+        opt.textContent = c
+        filter_sel.appendChild(opt)
+
+    if current_filter in ["ALL"] + categories:
+        filter_sel.value = current_filter
+    else:
+        filter_sel.value = "ALL"
+
+    # 編集用
+    edit_sel = document.getElementById("edit-category-select")
+    edit_sel.innerHTML = ""
+    for c in categories:
+        opt = document.createElement("option")
+        opt.value = c
+        opt.textContent = c
+        edit_sel.appendChild(opt)
+
+def render():
+    list_el = document.getElementById("list")
+    list_el.innerHTML = ""
+
+    if not links:
+        list_el.innerHTML = "<p>まだリンクがありません。</p>"
+        return
+
+    flt = get_filter_value()
+    items = list(links)
+
+    if flt != "ALL":
+        items = [it for it in items if (it.get("category") or "") == flt]
+
+    if not items:
+        list_el.innerHTML = "<p>このカテゴリのリンクはまだありません。</p>"
+        return
+
+    for item in items:
+        card = document.createElement("div")
+        card.className = "card"
+
+        img = document.createElement("img")
+        img.className = "thumb"
+
+        fallback = "data:image/svg+xml;utf8," + \
+            "<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80'>" + \
+            "<rect width='100%25' height='100%25' fill='%23e5e7eb'/>" + \
+            "<text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-size='10'>NO IMG</text>" + \
+            "</svg>"
+
+        # def on_img_error(e):
+        #     img.src = fallback
+
+        # img.addEventListener("error", create_proxy(on_img_error))
+
+        # thumb = item.get("thumb")
+        # img.src = thumb if thumb else fallback
+        # card.appendChild(img)
+
+        # 登録されているリンクURL
+        link_url = (item.get("url") or "").strip()
+
+        # 保存済みサムネイル
+        thumb = (item.get("thumb") or "").strip()
+
+        # SNS用の代替画像
+        social_fallback = fallback
+
+        if "instagram.com/" in link_url.lower():
+            social_fallback = (
+                "https://www.google.com/s2/favicons"
+                "?domain=instagram.com&sz=128"
+            )
+
+        elif "x.com/" in link_url.lower() or "twitter.com/" in link_url.lower():
+            social_fallback = (
+                "https://www.google.com/s2/favicons"
+                "?domain=x.com&sz=128"
+            )
+
+        # 画像取得失敗時の処理
+        def on_img_error(e, image=img, replacement=social_fallback):
+            if image.src != replacement:
+                image.src = replacement
+            else:
+                image.src = fallback
+
+        img.addEventListener(
+            "error",
+            create_proxy(on_img_error)
+        )
+
+        # 保存済み画像があれば優先
+        img.src = thumb if thumb else social_fallback
+
+        card.appendChild(img)
+
+        wrapper = document.createElement("div")
+        wrapper.className = "info"
+
+        title_el = document.createElement("div")
+        title_el.className = "title"
+        title_el.textContent = item.get("title") or "(タイトルなし)"
+
+        url_el = document.createElement("a")
+        url_el.className = "url"
+        url_el.href = item["url"]
+        url_el.target = "_blank"
+        url_el.rel = "noopener noreferrer"
+        url_el.textContent = item["url"]
+
+        tag_el = document.createElement("div")
+        tag_el.className = "tag"
+        tag_el.textContent = item.get("tag", "")
+
+        meta = document.createElement("div")
+        meta.className = "meta"
+
+        cat = document.createElement("span")
+        cat.className = "badge"
+        cat.textContent = f"カテゴリ：{item.get('category','レシピ') or 'レシピ'}"
+        meta.appendChild(cat)
+
+        wrapper.appendChild(title_el)
+        wrapper.appendChild(url_el)
+        wrapper.appendChild(tag_el)
+        wrapper.appendChild(meta)
+
+        card.appendChild(wrapper)
+        list_el.appendChild(card)
+
+# ========= イベント =========
+def on_submit(event):
+    event.preventDefault()
+
+    url   = document.getElementById("url-input").value.strip()
+    title = document.getElementById("title-input").value.strip()
+    tag   = document.getElementById("tag-input").value.strip()
+    thumb = document.getElementById("thumb-input").value.strip()
+    category = document.getElementById("category-input").value
+
+    if not url:
+        window.alert("URLを入力してください")
+        return
+
+    payload = {
+        "url": url,
+        "title": title,
+        "tag": tag,
+        "thumb": thumb,
+        "category": category,
+    }
+
+    async def _do():
+        global links
+        res = await api_add_link(payload)
+        if isinstance(res, dict) and res.get("error"):
+            window.alert("追加に失敗しました（API）")
+            console.error("add_link error:", res)
+            return
+
+        links = [res] + links
+        sync_categories_from_links()
+        render_category_selects()
+        render()
+
+        document.getElementById("link-form").reset()
+        if "レシピ" in categories:
+            document.getElementById("category-input").value = "レシピ"
+
+    asyncio.ensure_future(_do())
+
+def on_filter_change(event):
+    render()
+
+def on_url_change(event):
+    url = document.getElementById("url-input").value.strip()
+    request_preview(url)
+
+def on_paste_click(event):
+    def ok(text):
+        if text:
+            v = str(text).strip()
+            document.getElementById("url-input").value = v
+            request_preview(v)
+        else:
+            window.alert("クリップボードが空でした")
+    def ng(err):
+        console.error("clipboard error", err)
+        window.alert("貼付けに失敗しました。ブラウザの権限（クリップボード）を確認してください。")
+    navigator.clipboard.readText().then(create_proxy(ok)).catch(create_proxy(ng))
+
+# ---- カテゴリ管理（localStorage）----
+def add_category(event):
+    global categories
+    name = document.getElementById("new-category-input").value.strip()
+    if not name:
+        return
+    if name in categories:
+        window.alert("同名カテゴリが既にあります")
+        return
+
+    categories.append(name)
+    save_categories(categories)
+    render_category_selects()
+    document.getElementById("new-category-input").value = ""
+    render()
+
+def rename_category(event):
+    global categories
+    old = document.getElementById("edit-category-select").value
+    new = document.getElementById("edit-category-input").value.strip()
+
+    if not new:
+        return
+    if new in categories:
+        window.alert("同名カテゴリが既にあります")
+        return
+
+    for i, c in enumerate(categories):
+        if c == old:
+            categories[i] = new
+            break
+
+    save_categories(categories)
+    render_category_selects()
+    document.getElementById("edit-category-input").value = ""
+    render()
+
+def delete_category(event):
+    global categories
+    target = document.getElementById("edit-category-select").value
+    if target == "レシピ":
+        window.alert("レシピは削除できません")
+        return
+    if target in categories:
+        categories.remove(target)
+
+    save_categories(categories)
+    render_category_selects()
+    render()
+
+async def init():
+    global links, categories
+    categories = load_categories()
+    links = await api_get_links()
+    sync_categories_from_links()
+    render_category_selects()
+    render()
+
+# ========= イベント登録（最後） =========
+document.getElementById("link-form").addEventListener("submit", create_proxy(on_submit))
+document.getElementById("filter-category").addEventListener("change", create_proxy(on_filter_change))
+document.getElementById("paste-btn").addEventListener("click", create_proxy(on_paste_click))
+document.getElementById("url-input").addEventListener("change", create_proxy(on_url_change))
+
+document.getElementById("add-category-btn").addEventListener("click", create_proxy(add_category))
+document.getElementById("rename-category-btn").addEventListener("click", create_proxy(rename_category))
+document.getElementById("delete-category-btn").addEventListener("click", create_proxy(delete_category))
+
+asyncio.ensure_future(init())
+</script>
+</body>
+</html>
